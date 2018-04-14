@@ -185,7 +185,7 @@ ModelImporter:
       type: UnityEngine:Material
       assembly: UnityEngine.CoreModule
       name: blinn1
-    second: {fileID: 2100000, guid: 68ccb8ec5033ca54caa337d33e4f2d9d, type: 2}
+    second: {fileID: 2100000, guid: 0ccbb1fce8f5bbe4193f4d4531350c1a, type: 2}
   materials:
     importMaterials: 1
     materialName: 0
@@ -230,7 +230,7 @@ ModelImporter:
       hasAdditiveReferencePose: 0
       loopTime: 1
       loopBlend: 0
-      loopBlendOrientation: 0
+      loopBlendOrientation: 1
       loopBlendPositionY: 0
       loopBlendPositionXZ: 0
       keepOriginalOrientation: 0
