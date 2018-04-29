@@ -5,6 +5,7 @@ using UnityEngine.AI;
 
 public enum AIStateType { None, Idle, Alerted, Patrol, Attack, Feeding, Pursuit, Dead };
 public enum AITargetType { None, Waypoint, Visual_Player, Visual_Light, Visual_Food, Audio };
+public enum AITriggerEventType { Enter, Stay, Exit};
 
 // ----------------------------------------------------------------------
 // Class: AITarget
@@ -56,6 +57,7 @@ public abstract class AIStateMachine : MonoBehaviour {
     public AITarget VisualThreat = new AITarget();
     public AITarget AudioThreat = new AITarget();
 
+    protected AIState _currentState = null;
     protected Dictionary<AIStateType, AIState> _states = new Dictionary<AIStateType, AIState>();
     protected AITarget _target = new AITarget();
 
@@ -81,18 +83,44 @@ public abstract class AIStateMachine : MonoBehaviour {
         _animator = GetComponent<Animator>();
         _navAgent = GetComponent<NavMeshAgent>();
         _collider = GetComponent<Collider>();
+
+        if (GameSceneManager.instance)
+        {
+            // Register State Machine's colliders with scene database
+            if (_collider)
+            {
+                GameSceneManager.instance.RegisterAIStateMachine(_collider.GetInstanceID(), this);
+            }
+            if(_sensorTrigger)
+            {
+                GameSceneManager.instance.RegisterAIStateMachine(_sensorTrigger.GetInstanceID(), this);
+            }
+        }
     }
 
     protected virtual void Start ()
     {
         // Add all AI States for this object to the dictionary
+        // and tell each state what the stateMachine is (this)
         AIState[] states = GetComponents<AIState>();
-        foreach (AIState state in states)
+        foreach (AIState aiState in states)
         {
-            if (state && !_states.ContainsKey(state.GetStateType()))
+            if (aiState && !_states.ContainsKey(aiState.GetStateType()))
             {
-                _states[state.GetStateType()] = state;
+                _states[aiState.GetStateType()] = aiState;
+                aiState.SetStateMachine(this);
             }
+        }
+
+        // If the state (script object) is stored in the dictionary for the current state type
+        // retrieve it.
+        if (_states.ContainsKey(_currentStateType))
+        {
+            _currentState = _states[_currentStateType];
+            _currentState.OnEnterState();
+        } else
+        {
+            _currentState = null;
         }
     }
 
@@ -152,6 +180,35 @@ public abstract class AIStateMachine : MonoBehaviour {
             _target.distance = Vector3.Distance(_transform.position, _target.position);
         }
 
+    }
+
+    protected virtual void Update()
+    {
+        if (!_currentState) { return; }
+        
+        // Execute the OnUpdate of the current state
+        AIStateType newStateType = _currentState.OnUpdate();
+
+        // On change of state, tell the old one to exit and start the new.
+        if (newStateType != _currentStateType)
+        {
+            AIState newState = null;
+            // If new state in dictionary, return its type
+            if (_states.TryGetValue(newStateType, out newState))
+            {
+                _currentState.OnExitState();
+                newState.OnEnterState();
+                _currentState = newState;
+            }
+            else // if state doesn't exist/isn't built, fall back to Idle 
+            if (_states.TryGetValue(AIStateType.Idle, out newState))
+            {
+                _currentState.OnExitState();
+                newState.OnEnterState();
+                _currentState = newState;
+            }
+            _currentStateType = newStateType;
+        }
     }
 
 }
