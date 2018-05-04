@@ -100,6 +100,15 @@ public abstract class AIStateMachine : MonoBehaviour {
 
     protected virtual void Start ()
     {
+        if(_sensorTrigger != null)
+        {
+            AISensor sensor = _sensorTrigger.GetComponent<AISensor>(); 
+            if(sensor)
+            {
+                sensor.parentStateMachine = this;
+            }
+        }
+
         // Add all AI States for this object to the dictionary
         // and tell each state what the stateMachine is (this)
         AIState[] states = GetComponents<AIState>();
@@ -211,4 +220,27 @@ public abstract class AIStateMachine : MonoBehaviour {
         }
     }
 
+    protected virtual void OnTriggerEnter(Collider other)
+    {
+        // enusre it's our own target trigger
+        if (_targetTrigger == null || other != _targetTrigger) { return; }
+
+        if(_currentState)        
+            _currentState.OnDestinationReached(true); // notify child state        
+    }
+    protected virtual void OnTriggerExit(Collider other)
+    {
+        // enusre it's our own target trigger
+        if (_targetTrigger == null || other != _targetTrigger) { return; }
+
+        if (_currentState)        
+            _currentState.OnDestinationReached(false); // notify child state        
+    }
+
+    // Called by the sensor script attached to the sensor object 
+    public virtual void OnTriggerEvent(AITriggerEventType eventType, Collider other)
+    {
+        if (_currentState)
+            _currentState.OnTriggerEvent(eventType, other);
+    }
 }
