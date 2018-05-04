@@ -60,6 +60,8 @@ public abstract class AIStateMachine : MonoBehaviour {
     protected AIState _currentState = null;
     protected Dictionary<AIStateType, AIState> _states = new Dictionary<AIStateType, AIState>();
     protected AITarget _target = new AITarget();
+    protected int _rootPositionRefCount = 0;
+    protected int _rootRotationRefCount = 0;
 
     [SerializeField] protected AIStateType _currentStateType = AIStateType.Idle;  
     [SerializeField] protected SphereCollider _targetTrigger = null;
@@ -76,6 +78,34 @@ public abstract class AIStateMachine : MonoBehaviour {
     // Public Properties
     public Animator     animator { get { return _animator; } }
     public NavMeshAgent navAgent { get { return _navAgent; } }
+    public Vector3 sensorPosition
+    {
+        get
+        {
+            if (!_sensorTrigger) return Vector3.zero;
+            // Converts the local postion into a world position accounting for scale of parents
+            Vector3 worldPosition = _sensorTrigger.transform.position;
+            worldPosition.x += _sensorTrigger.center.x * _sensorTrigger.transform.lossyScale.x;
+            worldPosition.y += _sensorTrigger.center.y * _sensorTrigger.transform.lossyScale.y;
+            worldPosition.z += _sensorTrigger.center.z * _sensorTrigger.transform.lossyScale.z;
+            return worldPosition;
+        }
+    }
+    public float sensorRadius
+    {
+        get
+        {
+            if (!_sensorTrigger) return 0.0f;
+            float radius = Mathf.Max(
+                _sensorTrigger.radius * _sensorTrigger.transform.lossyScale.x,
+                _sensorTrigger.radius * _sensorTrigger.transform.lossyScale.y
+                );
+            return Mathf.Max(radius, _sensorTrigger.radius * _sensorTrigger.transform.lossyScale.z);
+        }
+    }
+
+    public bool useRootPosition { get { return _rootPositionRefCount > 0; } }
+    public bool useRootRotaion { get { return _rootRotationRefCount > 0; } }
 
     protected virtual void Awake()
     {
@@ -242,5 +272,32 @@ public abstract class AIStateMachine : MonoBehaviour {
     {
         if (_currentState)
             _currentState.OnTriggerEvent(eventType, other);
+    }
+
+    protected virtual void OnAnimatorMove()
+    {
+        if (_currentState)
+            _currentState.OnAnimatorUpdated();
+    }
+    protected virtual void OnAnimatorIK(int layerIndex)
+    {
+        if (_currentState)
+            _currentState.OnAnimatorIKUppdated();
+    }
+
+    public void NavAgentControl(bool positionUpdate, bool rotationUpdate)
+    {
+        if(_navAgent)
+        {
+            _navAgent.updatePosition = positionUpdate;
+            _navAgent.updateRotation = rotationUpdate;
+        }
+    }
+
+    // Called by the state machine behaviours to enable/disable root motion
+    public void AddRootMotionRequest(int rootPosition, int rootRotation)
+    {
+        _rootPositionRefCount += rootPosition;
+        _rootRotationRefCount += rootRotation;
     }
 }
